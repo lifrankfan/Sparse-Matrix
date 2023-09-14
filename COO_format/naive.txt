@@ -1,0 +1,59 @@
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+// Function to convert a dense matrix to COO format
+void denseToCOO(const vector<vector<float>>& denseMatrix, int numRows, int numCols, vector<int>& cooRowInd, vector<int>& cooColInd, vector<float>& cooValues) {
+    int nnz = 0; // Count of non-zero elements
+
+    for (int i = 0; i < numRows; i++) {
+        for (int j = 0; j < numCols; j++) {
+            float val = denseMatrix[i][j];
+            if (val != 0.0) {
+                cooValues[nnz] = val;
+                cooRowInd[nnz] = i;
+                cooColInd[nnz] = j;
+                nnz++;
+            }
+        }
+    }
+}
+
+int main() {
+    // Define matrix dimensions
+    int numRows = 3; // 2 rows
+    int numCols = 3; // 2 columns
+
+    // Create a 2x2 dense matrix as an array of arrays
+    vector<vector<float>> denseMatrix = {
+        {1.0, 0.0, 0.0},
+        {0.0, 2.0, 0.0},
+        {0.0, 0.0, 3.5}
+    };
+
+    // Allocate memory for COO format arrays on the host
+    int nnz = 0;
+    for (int i = 0; i < numRows; i++) {
+        for (int j = 0; j < numCols; j++) {
+            if (denseMatrix[i][j] != 0.0) {
+                nnz++;
+            }
+        }
+    }
+
+    vector<int> cooRowInd(nnz);
+    vector<int> cooColInd(nnz);
+    vector<float> cooValues(nnz);
+
+    // Convert dense to COO format
+    denseToCOO(denseMatrix, numRows, numCols, cooRowInd, cooColInd, cooValues);
+
+    // Print COO format
+    cout << "COO Format:" << endl;
+    for (int i = 0; i < nnz; i++) {
+        cout << "Row: " << cooRowInd[i] << ", Col: " << cooColInd[i] << ", Value: " << cooValues[i] << endl;
+    }
+
+    return 0;
+}
