@@ -1,5 +1,8 @@
 ﻿#include <iostream>
 #include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 // CUDA headers
 #include <cuda_runtime.h>
@@ -18,12 +21,6 @@ __global__ void denseToCOO(const float* denseMatrix, int numRows, int numCols, i
         float val = denseMatrix[i];
 
         if (val != 0.0) {
-            /* 
-            atomicAdd ensures that multiple threads won't update the same shared variable simultaneously
-            in this case, it ensures nnz is syncronized
-            nnz + 1
-            https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#atomic-functions 
-            */
             int index = atomicAdd(nnz, 1);
             cooValues[index] = val;
             cooRowInd[index] = row;
@@ -32,28 +29,43 @@ __global__ void denseToCOO(const float* denseMatrix, int numRows, int numCols, i
     }
 }
 
-int main() {
-    // Define matrix dimensions
-    int numRows = 4;
-    int numCols = 3;
+int main(int argc, char* argv[]) {
+    if (argc != 3) {
+        cerr << "Usage: " << argv[0] << " input_csv output_csv" << endl;
+        return 1;
+    }
 
-    // Create a dense matrix as a flat array
-    // CUDA doesn't seem to support 2D arrays
-    vector<float> denseMatrix = {
-        1.0, 0.0, 0.0,
-        0.0, 2.0, 0.0,
-        0.0, 0.0, 3.5,
-        0.0, 0.0, 4.0
-    };
+    string inputCsvFile = argv[1];
+    string outputCsvFile = argv[2];
 
-    // non-zero values and device non-zero values
+    // Read the dense matrix from the input CSV file
+    vector<float> denseMatrix;
+    int numRows = 0;
+    int numCols = 0;
+
+    ifstream inputFile(inputCsvFile);
+    string line;
+    while (getline(inputFile, line)) {
+        stringstream ss(line);
+        float value;
+        while (ss >> value) {
+            denseMatrix.push_back(value);
+        }
+        numRows++;
+        if (numCols == 0) {
+            numCols = denseMatrix.size();
+        }
+    }
+    inputFile.close();
+
+    for (float i : denseMatrix) {
+        cout << denseMatrix[i];
+    }
+
+    // Create CUDA device memory pointers
     int nnz = 0;
     int* d_nnz;
-
-    // device dense memory pointer
     float* d_denseMatrix;
-
-    // device sparse memory pointers
     int* d_cooRowInd;
     int* d_cooColInd;
     float* d_cooValues;
@@ -94,11 +106,12 @@ int main() {
     cudaFree(d_cooValues);
     cudaFree(d_nnz);
 
-    // Print COO format
-    cout << "COO Format:" << endl;
+    // Write COO format to the output CSV file
+    ofstream outputFile(outputCsvFile);
     for (int i = 0; i < nnz; i++) {
-        cout << "Row: " << cooRowInd[i] << ", Col: " << cooColInd[i] << ", Value: " << cooValues[i] << endl;
+        outputFile << cooRowInd[i] << "," << cooColInd[i] << "," << cooValues[i] << endl;
     }
+    outputFile.close();
 
     return 0;
 }
